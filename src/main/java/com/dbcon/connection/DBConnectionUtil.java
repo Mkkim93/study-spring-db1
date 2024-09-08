@@ -1,5 +1,7 @@
 package com.dbcon.connection;
 
+import com.dbcon.repository.MemberRepositoryV3;
+import com.dbcon.service.MemberServiceV3_3;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.relational.core.sql.SQL;
 
@@ -11,6 +13,7 @@ import java.sql.SQLException;
 import static com.dbcon.connection.ConnectionConst.*;
 @Slf4j
 public class DBConnectionUtil {
+
 
     public static Connection getConnection() {
 

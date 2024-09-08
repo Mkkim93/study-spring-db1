@@ -1,47 +1,50 @@
 package com.dbcon.service;
 
 import com.dbcon.domain.Member;
-import com.dbcon.repository.MemberRepositoryV2;
+import com.dbcon.repository.MemberRepositoryV3;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionStatus;
+import org.springframework.transaction.support.DefaultTransactionDefinition;
 
-import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.SQLException;
 
 /**
- * 트랜잭션 - 파라미터 연동, 풀을(POOL) 을 고려한 종료
+ * 트랜잭션 - 트랜잭션 매니저
  */
 
 @Slf4j
 @RequiredArgsConstructor
-public class MemberServiceV2 {
+public class MemberServiceV3_1 {
 
-    private final DataSource dataSource;
-    private final MemberRepositoryV2 memberRepository;
+//    private final DataSource dataSource;
+    private final PlatformTransactionManager transactionManager;
+    private final MemberRepositoryV3 memberRepository;
+
 
     public void accountTransfer(String fromId, String toId, int money) throws SQLException {
-        Connection con = dataSource.getConnection();
+        TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
+
         try {
-            con.setAutoCommit(false); // 트랙잭션 시작
-            bizLogic(con, fromId, toId, money);
-            con.commit(); // 정상로직 수행 후 commit() 수행
+            // 비스니스 로직
+            bizLogic(fromId, toId, money);
+            transactionManager.commit(status); // 정상로직 수행 후 commit() 수행
         } catch (Exception e) {
-            con.rollback(); // 실패시 rollback() 수행
+            transactionManager.rollback(status); // 실패시 rollback() 수행
             throw new IllegalStateException(e);
-        } finally {
-            release(con);
         }
     }
 
-    private void bizLogic(Connection con, String fromId, String toId, int money) throws SQLException {
+    private void bizLogic(String fromId, String toId, int money) throws SQLException {
         // 비즈니스 로직 수행
-        Member fromMember = memberRepository.findById(con, fromId);
-        Member toMember = memberRepository.findById(con, toId);
+        Member fromMember = memberRepository.findById(fromId);
+        Member toMember = memberRepository.findById(toId);
 
-        memberRepository.update(con, fromId, fromMember.getMoney() - money);
+        memberRepository.update(fromId, fromMember.getMoney() - money);
         validation(toMember);
-        memberRepository.update(con, toId, toMember.getMoney() + money);
+        memberRepository.update(toId, toMember.getMoney() + money);
     }
 
 

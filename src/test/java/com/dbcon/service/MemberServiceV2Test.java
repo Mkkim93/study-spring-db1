@@ -4,10 +4,8 @@ package com.dbcon.service;
  *  기본 동작, 트랜잭션이 없어서 문제 발생
  */
 
-import com.dbcon.connection.ConnectionConst;
 import com.dbcon.connection.DBConnectionUtil;
 import com.dbcon.domain.Member;
-import com.dbcon.repository.MemberRepositoryV0;
 import com.dbcon.repository.MemberRepositoryV2;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
@@ -33,6 +31,7 @@ class MemberServiceV2Test {
     private MemberRepositoryV2 repository;
     private MemberServiceV2 memberService;
     private static Connection con = null;
+
     @BeforeEach // 각 단위별 테스트가 수행되기전 무조건 한번 수행 (=단위 테스트와 1:1 매칭 같은 느낌)
     void before() {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
@@ -40,7 +39,6 @@ class MemberServiceV2Test {
         repository = new MemberRepositoryV2(dataSource);
         memberService = new MemberServiceV2(dataSource, repository);
     }
-
 
     @AfterEach // 모든 테스트가 끝나면 젤 마지막에 한번 수행
     void after() throws SQLException {

@@ -1,26 +1,20 @@
 package com.dbcon.service;
 
 /**
- *  트랜잭선 - DataSource, transactionDriverManager 삭제
+ *  트랜잭션 - 트랜잭션 매니저
  */
 
 import com.dbcon.domain.Member;
 import com.dbcon.repository.MemberRepositoryV3;
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.springframework.aop.support.AopUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.transaction.PlatformTransactionManager;
 
-import javax.sql.DataSource;
 import java.sql.SQLException;
 
 import static com.dbcon.connection.ConnectionConst.*;
@@ -28,37 +22,28 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Slf4j
-@SpringBootTest // test 를 실행할때 springBoot test 를 인식하고 필요한 spring bean 을 등록한다
-class MemberServiceV3_4Test {
+class MemberServiceV3_1Test {
 
     public static final String MEMBER_A = "memberA";
     public static final String MEMBER_B = "memberB";
     public static final String MEMBER_EX = "ex";
 
-    @Autowired
     private MemberRepositoryV3 memberRepository;
+    private MemberServiceV3_1 memberService;
 
-    @Autowired
-    private MemberServiceV3_3 memberService;
+    @BeforeEach // 각 단위별 테스트가 수행되기전 무조건 한번 수행 (=단위 테스트와 1:1 매칭 같은 느낌)
+    void before() {
+        // 1. DriverManagerDataSource 에서 데이터베이스 커넥션을 위한 정보를 초기화 한다.
+        DriverManagerDataSource dataSource = new DriverManagerDataSource(URL, USERNAME, PASSWORD);
+        memberRepository = new MemberRepositoryV3(dataSource); // 해당 정보를 repository 에 넣는다. (MemberRepositoryV3)
 
-    @TestConfiguration
-    static class TestConfig {
+        // 2. 트랜잭션 동기화를 위한 과정
+        // 트랜잭션을 수행하기 위해 transactionManager 객체를 생성하고 해당 인스턴스에 dataSource 를 넣는다
+        // transactionManager 에서 dataSource 변수를 통해 커넥션이 생성된 상태이다.
+        PlatformTransactionManager transactionManager = new DataSourceTransactionManager(dataSource);
 
-        private final DataSource dataSource;
-
-        public TestConfig(DataSource dataSource) {
-            this.dataSource = dataSource;
-        }
-
-        @Bean
-        MemberRepositoryV3 memberRepositoryV3() {
-            return new MemberRepositoryV3(dataSource);
-        }
-
-        @Bean
-        MemberServiceV3_3 memberServiceV3_3() {
-            return new MemberServiceV3_3(memberRepositoryV3());
-        }
+        // memberService 에 커넥션이 완료된 transactionManager 와, repository 의 정보를 초기화 해준다.
+        memberService = new MemberServiceV3_1(transactionManager, memberRepository);
     }
 
     @AfterEach // 모든 테스트가 끝나면 젤 마지막에 한번 수행
@@ -66,17 +51,6 @@ class MemberServiceV3_4Test {
         memberRepository.delete(MEMBER_A);
         memberRepository.delete(MEMBER_B);
         memberRepository.delete(MEMBER_EX);
-    }
-
-    @Test
-    void AopCheck() {
-        log.info("memberService class={}", memberService.getClass()); // proxy 코드
-        log.info("memberRepository class={}", memberRepository.getClass());
-
-        // memberService 와 memberRepository 둘다 프록시 객체인지 확인하는 방법
-        // assertThat(AopUtils.isAopProxy(memberService)).isEqualTo(AopUtils.isAopProxy(memberRepository));
-        assertThat(AopUtils.isAopProxy(memberService));
-        assertThat(AopUtils.isAopProxy(memberRepository));
     }
 
     @Test

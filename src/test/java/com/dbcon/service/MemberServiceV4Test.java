@@ -1,12 +1,13 @@
 package com.dbcon.service;
 
 /**
- *  트랜잭선 - DataSource, transactionDriverManager 삭제
+ * 예외 누수 문제 해결
+ * SQLException 제거
+ * MemberRepository 인터페이스에 의존
  */
 
 import com.dbcon.domain.Member;
-import com.dbcon.repository.MemberRepositoryV3;
-import lombok.Data;
+import com.dbcon.repository.*;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,30 +17,31 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.springframework.transaction.PlatformTransactionManager;
 
 import javax.sql.DataSource;
-import java.sql.SQLException;
 
-import static com.dbcon.connection.ConnectionConst.*;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @Slf4j
 @SpringBootTest // test 를 실행할때 springBoot test 를 인식하고 필요한 spring bean 을 등록한다
-class MemberServiceV3_4Test {
+class MemberServiceV4Test {
 
     public static final String MEMBER_A = "memberA";
     public static final String MEMBER_B = "memberB";
     public static final String MEMBER_EX = "ex";
 
     @Autowired
-    private MemberRepositoryV3 memberRepository;
-
+    MemberRepository memberRepository;
     @Autowired
-    private MemberServiceV3_3 memberService;
+    MemberServiceV4 memberService;
+
+    @AfterEach // 모든 테스트가 끝나면 젤 마지막에 한번 수행
+    void after(){
+        memberRepository.delete(MEMBER_A);
+        memberRepository.delete(MEMBER_B);
+        memberRepository.delete(MEMBER_EX);
+    }
 
     @TestConfiguration
     static class TestConfig {
@@ -49,23 +51,15 @@ class MemberServiceV3_4Test {
         public TestConfig(DataSource dataSource) {
             this.dataSource = dataSource;
         }
-
         @Bean
-        MemberRepositoryV3 memberRepositoryV3() {
-            return new MemberRepositoryV3(dataSource);
+        MemberRepository memberRepository() {
+//            return new MemberRepositoryV4_2(dataSource); //단순 예외 변환
+            return new MemberRepositoryV6(dataSource);
         }
-
         @Bean
-        MemberServiceV3_3 memberServiceV3_3() {
-            return new MemberServiceV3_3(memberRepositoryV3());
+        MemberServiceV4 memberServiceV4() {
+            return new MemberServiceV4(memberRepository());
         }
-    }
-
-    @AfterEach // 모든 테스트가 끝나면 젤 마지막에 한번 수행
-    void after() throws SQLException {
-        memberRepository.delete(MEMBER_A);
-        memberRepository.delete(MEMBER_B);
-        memberRepository.delete(MEMBER_EX);
     }
 
     @Test
@@ -81,7 +75,7 @@ class MemberServiceV3_4Test {
 
     @Test
     @DisplayName("정상 이체")
-    void accountTransfer() throws SQLException {
+    void accountTransfer() {
         // given
         Member memberA = new Member(MEMBER_A, 10000);
         Member memberB = new Member(MEMBER_B, 10000);
@@ -95,14 +89,14 @@ class MemberServiceV3_4Test {
         Member findMemberA = memberRepository.findById(memberA.getMemberId());
         Member findMemberB = memberRepository.findById(memberB.getMemberId());
 
-        // assertThat(findMemberA.getMoney()).isEqualTo(findMemberB.getMoney());
-        assertThat(findMemberA.getMoney()).isEqualTo(8000);
-        assertThat(findMemberB.getMoney()).isEqualTo(12000);
+         // assertThat(findMemberA.getMoney()).isEqualTo(findMemberB.getMoney());
+         assertThat(findMemberA.getMoney()).isEqualTo(8000);
+         assertThat(findMemberB.getMoney()).isEqualTo(12000);
     }
 
     @Test
     @DisplayName("이체중 예외 발생")
-    void accountTransferEx() throws SQLException {
+    void accountTransferEx(){
         // given
         Member memberA = new Member(MEMBER_A, 10000);
         Member memberEX = new Member(MEMBER_EX, 10000);
